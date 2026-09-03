@@ -1,0 +1,29 @@
+name: MS-59 Container Baseline
+
+on:
+  pull_request:
+    paths:
+      - 'infra/container/**'
+      - 'compose.yaml'
+      - 'tests/security/test_container_baseline.sh'
+      - 'docs/security/container-baseline.md'
+      - 'docs/adr/ADR-0001-container-runtime-baseline.md'
+      - '.github/workflows/ms-59-container-baseline.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-container-baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate Compose configuration
+        run: docker compose config
+
+      - name: Run MS-59 negative tests
+        run: sh tests/security/test_container_baseline.sh
