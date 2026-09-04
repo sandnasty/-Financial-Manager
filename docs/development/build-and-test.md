@@ -4,7 +4,7 @@ MS-72 establishes one repository-root interface for developers and CI. The suppo
 
 ## Pinned inputs
 
-- Python `3.12.11` is pinned in `.python-version`, `.tool-versions`, and `pyproject.toml`.
+- Python `3.14.7` is pinned in `.python-version`, `.tool-versions`, and `pyproject.toml`.
 - GNU Make `4.3` is pinned in `.tool-versions`.
 - Third-party Python dependencies are fully represented by `pylock.toml`. The representative service intentionally has an empty third-party package set and uses only the Python standard library.
 - The container base is pinned by both tag and multi-platform manifest digest in `infra/container/Dockerfile`.
@@ -31,7 +31,7 @@ make validate
 
 That single command checks the exact Python runtime, Python syntax, dependency-lock consistency, the pinned container base, repository formatting, all unit/build-contract tests, and finally creates `dist/baseline-service.zip`. The test path includes a byte-for-byte double-build comparison. Any failed check, test, or build exits non-zero.
 
-CI must invoke this same command after activating Python `3.12.11`; it must not duplicate the individual steps in workflow YAML.
+CI must invoke this same command after activating Python `3.14.7`; it must not duplicate the individual steps in workflow YAML.
 
 ## Other top-level commands
 
