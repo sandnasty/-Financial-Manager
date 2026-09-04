@@ -29,16 +29,16 @@ def main() -> int:
 
     project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     lock = tomllib.loads((ROOT / "pylock.toml").read_text(encoding="utf-8"))
-    if project["project"]["requires-python"] != "==3.12.11":
-        fail("pyproject.toml must pin Python to ==3.12.11")
+    if project["project"]["requires-python"] != "==3.14.7":
+        fail("pyproject.toml must pin Python to ==3.14.7")
     if project["project"]["dependencies"]:
         fail("pyproject dependencies changed; regenerate and commit pylock.toml")
     if lock.get("packages") != []:
         fail("the lock must match the service's empty third-party dependency set")
-    if lock.get("environments") != ["python_full_version == '3.12.11'"]:
+    if lock.get("environments") != ["python_full_version == '3.14.7'"]:
         fail("pylock.toml must pin the exact Python environment")
-    if lock.get("requires-python") != "==3.12.11":
-        fail("pylock.toml must pin requires-python to ==3.12.11")
+    if lock.get("requires-python") != "==3.14.7":
+        fail("pylock.toml must pin requires-python to ==3.14.7")
 
     dockerfile = (ROOT / "infra/container/Dockerfile").read_text(encoding="utf-8")
     if not PINNED_FROM.search(dockerfile):
