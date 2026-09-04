@@ -22,11 +22,11 @@ class RepositoryContractTest(unittest.TestCase):
             text=True,
             check=False,
         )
-        if sys.version_info[:3] == (3, 12, 11):
+        if sys.version_info[:3] == (3, 14, 7):
             self.assertEqual(result.returncode, 0)
         else:
             self.assertNotEqual(result.returncode, 0)
-            self.assertIn("Python 3.12.11 is required", result.stderr)
+            self.assertIn("Python 3.14.7 is required", result.stderr)
 
     def test_local_secrets_and_outputs_are_ignored(self) -> None:
         ignore = (ROOT / ".gitignore").read_text(encoding="utf-8")
