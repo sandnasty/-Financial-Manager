@@ -1,0 +1,32 @@
+name: MS-72 Clean Validation
+
+on:
+  push:
+    branches:
+      - feature/MS-72-deterministic-build
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.14.7
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14.7'
+
+      - name: Verify GNU Make 4.3
+        shell: bash
+        run: |
+          make --version
+          test "$(make --version | awk 'NR==1 {print $3}')" = "4.3"
+
+      - name: Run authoritative MS-72 validation
+        run: make validate
