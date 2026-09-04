@@ -6,6 +6,7 @@ import sys
 import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
+PINNED_PYTHON = (3, 14, 7)
 
 
 class RepositoryContractTest(unittest.TestCase):
@@ -22,7 +23,7 @@ class RepositoryContractTest(unittest.TestCase):
             text=True,
             check=False,
         )
-        if sys.version_info[:3] == (3, 14, 7):
+        if sys.version_info[:3] == PINNED_PYTHON:
             self.assertEqual(result.returncode, 0)
         else:
             self.assertNotEqual(result.returncode, 0)
