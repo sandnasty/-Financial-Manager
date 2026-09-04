@@ -1,0 +1,81 @@
+name: PR Validation
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-validation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository revision
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.14.7
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14.7'
+
+      - name: Verify GNU Make 4.3
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(make --version | awk 'NR==1 {print $3}')"
+          echo "GNU Make version: ${actual}"
+          test "${actual}" = "4.3"
+
+      - name: Record pipeline identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "repository=${GITHUB_REPOSITORY}"
+            echo "sha=${GITHUB_SHA}"
+            echo "run_id=${GITHUB_RUN_ID}"
+            echo "run_attempt=${GITHUB_RUN_ATTEMPT}"
+            echo "workflow=${GITHUB_WORKFLOW}"
+          } | tee ci-evidence.txt
+
+      - name: Run authoritative validation
+        shell: bash
+        run: |
+          set -euo pipefail
+          make validate
+
+      - name: Publish validation summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## PR validation evidence"
+            echo ""
+            echo "- Commit SHA: \`${GITHUB_SHA}\`"
+            echo "- Workflow run ID: \`${GITHUB_RUN_ID}\`"
+            echo "- Run attempt: \`${GITHUB_RUN_ATTEMPT}\`"
+            echo "- Authoritative command: \`make validate\`"
+            echo "- Job result: \`${{ job.status }}\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload pipeline evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-validation-evidence-${{ github.run_id }}
+          path: |
+            ci-evidence.txt
+            dist/baseline-service.zip
+          if-no-files-found: warn
+          retention-days: 30
