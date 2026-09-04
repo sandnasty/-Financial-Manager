@@ -4,7 +4,7 @@ Secure, explainable trading decision-support and execution platform progressing 
 
 ## Build and test
 
-The supported developer platform is Windows + WSL2 with Linux-style tools and Docker Desktop's WSL2 backend. From the repository root:
+The supported developer platform is Windows + WSL2 with Linux-style tools and Docker Desktop's WSL2 backend. Python 3.14.7 is the authoritative pinned runtime. From the repository root:
 
 ```sh
 make doctor
