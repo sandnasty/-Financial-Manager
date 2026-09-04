@@ -1,5 +1,6 @@
 lock-version = "1.0"
 environments = ["python_full_version == '3.12.11'"]
+requires-python = "==3.12.11"
 created-by = "Financial Manager MS-72"
 
 # The representative service intentionally uses only the Python standard library.

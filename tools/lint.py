@@ -37,6 +37,8 @@ def main() -> int:
         fail("the lock must match the service's empty third-party dependency set")
     if lock.get("environments") != ["python_full_version == '3.12.11'"]:
         fail("pylock.toml must pin the exact Python environment")
+    if lock.get("requires-python") != "==3.12.11":
+        fail("pylock.toml must pin requires-python to ==3.12.11")
 
     dockerfile = (ROOT / "infra/container/Dockerfile").read_text(encoding="utf-8")
     if not PINNED_FROM.search(dockerfile):
