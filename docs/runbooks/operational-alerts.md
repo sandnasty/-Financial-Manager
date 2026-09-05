@@ -34,3 +34,9 @@ or roll back the affected release.
 
 Owner: Trading operator. Pause new submissions, verify consumers and policy controls,
 and drain only after duplicate-action safeguards are confirmed.
+
+## Alert delivery failure
+
+Owner: Platform operator. Inspect `fm_alert_delivery_attempts_total` and the redacted delivery
+audit events, verify the provider and protected secret availability, and exercise the alternate
+channel. Keep unsafe workflows disabled if Critical alerts cannot reach either operator path.

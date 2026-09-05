@@ -46,3 +46,10 @@ groups:
         annotations:
           summary: TradeIntent queue backlog
           runbook_url: docs/runbooks/operational-alerts.md#queue-backlog
+      - alert: AlertDeliveryFailure
+        expr: increase(fm_alert_delivery_failures_total[5m]) > 0
+        for: 1m
+        labels: {severity: critical, owner: platform-operator}
+        annotations:
+          summary: Production alert delivery failed after all retries
+          runbook_url: docs/runbooks/operational-alerts.md#alert-delivery-failure
