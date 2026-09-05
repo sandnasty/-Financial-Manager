@@ -31,6 +31,8 @@ class ReproducibleBuildTest(unittest.TestCase):
             self.assertEqual(digest, hashlib.sha256(artifact.read_bytes()).hexdigest())
             with zipfile.ZipFile(artifact) as archive:
                 self.assertIn("build-manifest.json", archive.namelist())
+                self.assertIn("financial_manager/app.py", archive.namelist())
+                self.assertIn("financial_manager/notification_settings.py", archive.namelist())
                 self.assertTrue(all(item.date_time == BUILD.FIXED_ZIP_TIME for item in archive.infolist()))
 
 

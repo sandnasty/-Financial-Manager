@@ -209,6 +209,11 @@ tempCodeRunnerFile.py
 # PyPI configuration file
 .pypirc
 
+# Financial Manager local first-run configuration and audit trail
+/settings.json
+/settings-audit.jsonl
+/.financial-manager/
+
 # Marimo
 marimo/_static/
 marimo/_lsp/

@@ -44,5 +44,6 @@ CI must invoke this same command after activating Python `3.14.7`; it must not d
 - `make doctor` diagnoses WSL2, Python, GNU Make, Git, Docker, and Compose.
 - `make container-test` runs the existing hardened-container integration test.
 - `make clean` removes generated build outputs.
+- `make run` starts the application shell and first-run notification setup.
 
 To prove clean-room behavior, start from a fresh checkout, activate the pinned tools, and run only `make validate`. No dependency installation is currently necessary because `pylock.toml` resolves to an empty package set. If a dependency is later added, update both `pyproject.toml` and `pylock.toml` in the same change; the validation policy deliberately fails on drift.
