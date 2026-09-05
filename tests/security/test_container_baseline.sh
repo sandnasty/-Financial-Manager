@@ -28,37 +28,44 @@ done
   exit 1
 }
 
-[ "$(docker compose exec -T "$SERVICE" id -u)" != "0" ] || {
+uid=$(docker compose exec -T "$SERVICE" python -c 'import os; print(os.geteuid())' | tr -d '\r')
+[ "$uid" != "0" ] || {
   echo "FAIL: service is running as root"
   exit 1
 }
 
-if docker compose exec -T "$SERVICE" sh -c 'touch /prohibited-write-test' >/dev/null 2>&1; then
+if docker compose exec -T "$SERVICE" python -c 'open("/prohibited-write-test", "w").close()' >/dev/null 2>&1; then
   echo "FAIL: root filesystem is writable"
   exit 1
 fi
 
-cap_eff=$(docker compose exec -T "$SERVICE" sh -c "awk '/^CapEff:/ {print \$2}' /proc/self/status" | tr -d '\r')
+cap_eff=$(docker compose exec -T "$SERVICE" python -c 'print(next(line.split()[1] for line in open("/proc/self/status", encoding="utf-8") if line.startswith("CapEff:")))' | tr -d '\r')
 [ "$cap_eff" = "0000000000000000" ] || {
   echo "FAIL: effective Linux capabilities are not fully dropped: $cap_eff"
   exit 1
 }
 
-if docker compose exec -T "$SERVICE" sh -c 'test -S /var/run/docker.sock || test -S /run/docker.sock'; then
+if docker compose exec -T "$SERVICE" python -c 'import os,sys; sys.exit(0 if any(os.path.exists(p) for p in ("/var/run/docker.sock", "/run/docker.sock")) else 1)'; then
   echo "FAIL: host container runtime socket is exposed"
   exit 1
 fi
 
-if docker compose exec -T "$SERVICE" sh -c 'test -e /dev/kvm || test -e /dev/mem'; then
+if docker compose exec -T "$SERVICE" python -c 'import os,sys; sys.exit(0 if any(os.path.exists(p) for p in ("/dev/kvm", "/dev/mem")) else 1)'; then
   echo "FAIL: prohibited host devices are exposed"
   exit 1
 fi
 
-if docker compose exec -T "$SERVICE" sh -c 'touch /tmp/allowed-write-test && rm /tmp/allowed-write-test'; then
+if docker compose exec -T "$SERVICE" python -c 'from pathlib import Path; p=Path("/tmp/allowed-write-test"); p.touch(); p.unlink()'; then
   :
 else
   echo "FAIL: explicitly scoped /tmp writable area is not usable"
   exit 1
 fi
+
+version=$(docker compose exec -T "$SERVICE" python -c 'import platform; print(platform.python_version())' | tr -d '\r')
+[ "$version" = "3.14.7" ] || {
+  echo "FAIL: container Python runtime is $version; expected 3.14.7"
+  exit 1
+}
 
 echo "PASS: MS-59 hardened container negative tests succeeded"
