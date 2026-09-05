@@ -9,8 +9,7 @@ approved strategy and tool failures rise.
 2. The operator captures build digest, alert state, correlation IDs, and audit sequence.
 3. The operator disables the research agent with explicit confirmation. A new TradeIntent
    is rejected while dashboards and audit reads remain available.
-4. The release operator selects the prior approved signed digest and runs Controlled
-   Rollback with PROD approval.
+4. The release operator selects the prior approved signed digest and runs the `Controlled Rollback` workflow with PROD approval.
 5. Operators verify service health, telemetry, audit-chain integrity, policy version, and
    absence of duplicate brokerage effects.
 6. The repaired version passes DEV and TEST. The owner explicitly approves scoped
