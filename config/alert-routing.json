@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "routes": {
+    "high": {
+      "channels": ["email"],
+      "fallback_channels": ["sms"]
+    },
+    "critical": {
+      "channels": ["email", "sms"],
+      "fallback_channels": []
+    }
+  },
+  "delivery": {
+    "max_attempts": 3,
+    "retry_backoff_seconds": [1, 5]
+  }
+}
