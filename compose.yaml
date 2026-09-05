@@ -1,21 +1,24 @@
+x-hardened-service: &hardened-service
+  user: "10001:10001"
+  read_only: true
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,nodev,size=16m
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+  pids_limit: 128
+  mem_limit: 256m
+  cpus: 0.50
+  restart: "no"
+
 services:
   baseline:
+    <<: *hardened-service
     build:
       context: .
       dockerfile: infra/container/Dockerfile
     image: financial-manager/baseline:ms-59
-    user: "10001:10001"
-    read_only: true
-    tmpfs:
-      - /tmp:rw,noexec,nosuid,nodev,size=16m
-    cap_drop:
-      - ALL
-    security_opt:
-      - no-new-privileges:true
-    pids_limit: 128
-    mem_limit: 256m
-    cpus: 0.50
-    restart: "no"
     ports:
       - "127.0.0.1:8080:8080"
     networks:
@@ -27,7 +30,50 @@ services:
       retries: 3
       start_period: 5s
 
+  # The profile documents and enforces production service network membership.
+  # Agents have no external network; only purpose-built gateways attach to one.
+
+  research-agent:
+    <<: *hardened-service
+    profiles: ["platform"]
+    image: financial-manager/baseline:ms-59
+    networks: [fm_agent]
+
+  market-data-gateway:
+    <<: *hardened-service
+    profiles: ["platform"]
+    image: financial-manager/baseline:ms-59
+    networks: [fm_agent, fm_market_egress]
+
+  news-gateway:
+    <<: *hardened-service
+    profiles: ["platform"]
+    image: financial-manager/baseline:ms-59
+    networks: [fm_agent, fm_market_egress]
+
+  approval-service:
+    <<: *hardened-service
+    profiles: ["platform"]
+    image: financial-manager/baseline:ms-59
+    networks: [fm_agent, fm_broker_control]
+
+  broker-gateway:
+    <<: *hardened-service
+    profiles: ["platform"]
+    image: financial-manager/baseline:ms-59
+    networks: [fm_broker_control, fm_broker_egress]
+
 networks:
   fm_internal:
     driver: bridge
     internal: true
+  fm_agent:
+    driver: bridge
+    internal: true
+  fm_broker_control:
+    driver: bridge
+    internal: true
+  fm_market_egress:
+    driver: bridge
+  fm_broker_egress:
+    driver: bridge
