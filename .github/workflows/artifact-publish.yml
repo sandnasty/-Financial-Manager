@@ -1,0 +1,199 @@
+name: Immutable Container Artifact
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/financial-manager
+
+concurrency:
+  group: immutable-artifact-${{ github.event_name }}-${{ github.ref }}-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  verify-container:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository revision
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build deployable container without publishing
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/container/Dockerfile
+          push: false
+          tags: financial-manager-ms74-pr:${{ github.sha }}
+
+  publish-container:
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository revision
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.14.7
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14.7'
+
+      - name: Verify GNU Make 4.3
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(make --version | awk 'NR==1 {print $3}')"
+          echo "GNU Make version: ${actual}"
+          test "${actual}" = "4.3"
+
+      - name: Run authoritative validation before publication
+        shell: bash
+        run: |
+          set -euo pipefail
+          make validate
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Derive immutable artifact identity
+        id: identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(python - <<'PY'
+          import tomllib
+          with open('pyproject.toml', 'rb') as handle:
+              print(tomllib.load(handle)['project']['version'])
+          PY
+          )"
+          image="${IMAGE_NAME,,}"
+          tag="v${version}-sha.${GITHUB_SHA}-run.${GITHUB_RUN_ID}-attempt.${GITHUB_RUN_ATTEMPT}"
+          {
+            echo "version=${version}"
+            echo "image=${image}"
+            echo "tag=${tag}"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Build and publish immutable container artifact
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/container/Dockerfile
+          push: true
+          tags: ${{ steps.identity.outputs.image }}:${{ steps.identity.outputs.tag }}
+          labels: |
+            org.opencontainers.image.title=Financial Manager
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.identity.outputs.version }}
+            financial-manager.ci.run-id=${{ github.run_id }}
+            financial-manager.ci.run-attempt=${{ github.run_attempt }}
+
+      - name: Record immutable artifact metadata
+        shell: bash
+        env:
+          ARTIFACT_IMAGE: ${{ steps.identity.outputs.image }}
+          ARTIFACT_TAG: ${{ steps.identity.outputs.tag }}
+          ARTIFACT_VERSION: ${{ steps.identity.outputs.version }}
+          ARTIFACT_DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from datetime import UTC, datetime
+
+          image = os.environ['ARTIFACT_IMAGE']
+          tag = os.environ['ARTIFACT_TAG']
+          digest = os.environ['ARTIFACT_DIGEST']
+          metadata = {
+              'schema_version': 1,
+              'artifact_type': 'oci-container-image',
+              'image': image,
+              'tag': tag,
+              'tagged_ref': f'{image}:{tag}',
+              'digest': digest,
+              'immutable_ref': f'{image}@{digest}',
+              'project_version': os.environ['ARTIFACT_VERSION'],
+              'source_repository': os.environ['GITHUB_REPOSITORY'],
+              'source_sha': os.environ['GITHUB_SHA'],
+              'workflow': os.environ['GITHUB_WORKFLOW'],
+              'run_id': os.environ['GITHUB_RUN_ID'],
+              'run_attempt': os.environ['GITHUB_RUN_ATTEMPT'],
+              'run_url': (
+                  f"{os.environ['GITHUB_SERVER_URL']}/"
+                  f"{os.environ['GITHUB_REPOSITORY']}/actions/runs/"
+                  f"{os.environ['GITHUB_RUN_ID']}"
+              ),
+              'published_at_utc': datetime.now(UTC).isoformat(),
+          }
+          with open('artifact-metadata.json', 'w', encoding='utf-8') as handle:
+              json.dump(metadata, handle, indent=2, sort_keys=True)
+              handle.write('\n')
+          print(json.dumps(metadata, indent=2, sort_keys=True))
+          PY
+
+      - name: Verify published digest is resolvable
+        shell: bash
+        env:
+          ARTIFACT_IMAGE: ${{ steps.identity.outputs.image }}
+          ARTIFACT_DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          docker buildx imagetools inspect "${ARTIFACT_IMAGE}@${ARTIFACT_DIGEST}"
+
+      - name: Upload artifact metadata for downstream stages
+        uses: actions/upload-artifact@v4
+        with:
+          name: immutable-container-metadata-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifact-metadata.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Publish artifact summary
+        shell: bash
+        env:
+          ARTIFACT_IMAGE: ${{ steps.identity.outputs.image }}
+          ARTIFACT_TAG: ${{ steps.identity.outputs.tag }}
+          ARTIFACT_DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          {
+            echo "## Immutable container artifact"
+            echo ""
+            echo "- Source SHA: \`${GITHUB_SHA}\`"
+            echo "- CI run: \`${GITHUB_RUN_ID}\` attempt \`${GITHUB_RUN_ATTEMPT}\`"
+            echo "- Tagged reference: \`${ARTIFACT_IMAGE}:${ARTIFACT_TAG}\`"
+            echo "- Immutable reference: \`${ARTIFACT_IMAGE}@${ARTIFACT_DIGEST}\`"
+            echo "- Authoritative deployment identity: digest"
+          } >> "${GITHUB_STEP_SUMMARY}"
