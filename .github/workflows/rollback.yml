@@ -1,0 +1,34 @@
+name: Controlled Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_digest: {description: Previously approved sha256 digest, required: true, type: string}
+      confirmation: {description: Type ROLLBACK, required: true, type: string}
+permissions: {contents: read, actions: read, packages: read}
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    environment:
+      name: PROD
+    steps:
+      - name: Require explicit rollback confirmation
+        run: test '${{ inputs.confirmation }}' = 'ROLLBACK'
+      - name: Require immutable digest
+        run: echo '${{ inputs.target_digest }}' | grep -Eq '^sha256:[0-9a-f]{64}$'
+      - name: Checkout rollback controls
+        uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Install patched Cosign verifier
+        uses: sigstore/cosign-installer@ba7bc0a3fef59531c69a25acd34668d6d3fe6f22
+        with: {cosign-release: 'v3.1.3'}
+      - name: Verify previously approved signed digest
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/financial-manager
+          DIGEST: ${{ inputs.target_digest }}
+          IDENTITY: https://github.com/${{ github.repository }}/.github/workflows/artifact-publish.yml@refs/heads/main
+        run: cosign verify --certificate-identity "$IDENTITY" --certificate-oidc-issuer https://token.actions.githubusercontent.com "$IMAGE@$DIGEST"
+      - name: Record rollback candidate
+        run: printf '{"action":"deployment.rollback","digest":"%s"}\n' '${{ inputs.target_digest }}' > rollback-record.json
+      - uses: actions/upload-artifact@v4
+        with: {name: rollback-record, path: rollback-record.json, retention-days: 365}
