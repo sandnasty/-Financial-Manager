@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:financial-manager:trade-intent:v1",
+  "title": "Financial Manager TradeIntent v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "intent_id",
+    "correlation_id",
+    "instrument",
+    "side",
+    "quantity",
+    "sizing_basis",
+    "order_constraints",
+    "strategy_thesis_ref",
+    "risk_policy_version",
+    "approval_state",
+    "approval_id",
+    "approver_id",
+    "issued_at",
+    "expires_at",
+    "provenance"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "intent_id": {"type": "string", "format": "uuid"},
+    "correlation_id": {"type": "string", "minLength": 1},
+    "instrument": {"type": "string", "pattern": "^[A-Z][A-Z0-9.-]{0,14}$"},
+    "side": {"enum": ["BUY", "SELL"]},
+    "quantity": {"type": "string", "pattern": "^[0-9]+(\\.[0-9]+)?$"},
+    "sizing_basis": {"type": "string", "minLength": 1},
+    "order_constraints": {"type": "object"},
+    "strategy_thesis_ref": {"type": "string", "minLength": 1},
+    "risk_policy_version": {"type": "string", "minLength": 1},
+    "approval_state": {"const": "approved"},
+    "approval_id": {"type": "string", "minLength": 1},
+    "approver_id": {"type": "string", "minLength": 1},
+    "issued_at": {"type": "string", "format": "date-time"},
+    "expires_at": {"type": "string", "format": "date-time"},
+    "provenance": {
+      "type": "object",
+      "required": ["recommendation_event_id", "risk_decision_event_id", "source_version"]
+    }
+  }
+}
