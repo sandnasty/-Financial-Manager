@@ -13,7 +13,7 @@ check-toolchain: ## Fail unless the pinned runtime is active
 build: check-toolchain ## Create the deterministic representative-service artifact
 	@$(PYTHON) tools/build.py
 
-test: check-toolchain ## Run all dependency-free unit and build-contract tests
+test: check-toolchain ## Run all unit and build-contract tests
 	@$(PYTHON) -m unittest discover -s tests -p 'test_*.py' -v
 
 lint: check-toolchain ## Run source and repository policy checks

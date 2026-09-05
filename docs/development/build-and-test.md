@@ -6,7 +6,9 @@ MS-72 establishes one repository-root interface for developers and CI. The suppo
 
 - Python `3.14.7` is pinned in `.python-version`, `.tool-versions`, and `pyproject.toml`.
 - GNU Make `4.3` is pinned in `.tool-versions`.
-- Third-party Python dependencies are fully represented by `pylock.toml`. The representative service intentionally has an empty third-party package set and uses only the Python standard library.
+- Third-party Python dependencies are fully represented by `pylock.toml`. The Amazon SNS adapter
+  uses the exactly pinned AWS SDK for Python dependency set; unit tests replace its network client
+  with an in-memory contract double.
 - The container base is pinned by both tag and multi-platform manifest digest in `infra/container/Dockerfile`.
 - Source text is normalized to LF through `.gitattributes` and the formatter.
 

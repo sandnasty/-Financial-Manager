@@ -97,9 +97,10 @@ class AlertRoutingTests(unittest.TestCase):
                 "ALERT_EMAIL_RECIPIENT",
                 "ALERT_SMS_RECIPIENT",
                 "ALERT_EMAIL_CREDENTIAL",
-                "ALERT_SMS_CREDENTIAL",
+                "ALERT_SMS_ORIGINATION_NUMBER",
             }.issubset(names)
         )
+        self.assertNotIn("ALERT_SMS_CREDENTIAL", names)
 
     def test_alertmanager_routes_high_and_critical_to_internal_router(self):
         content = (ROOT / "infra/observability/alertmanager.yaml").read_text()
