@@ -26,18 +26,23 @@ class CicdPermissionContractTests(unittest.TestCase):
     def test_pr_checkout_does_not_persist_credentials(self) -> None:
         self.assertIn("persist-credentials: false", self.pr)
 
-    def test_publication_write_permission_is_registry_scoped(self) -> None:
+    def test_publication_write_permission_is_registry_and_signing_scoped(self) -> None:
         self.assertIn("publish-container:", self.publish)
         self.assertIn("packages: write", self.publish)
+        self.assertIn("id-token: write", self.publish)
         self.assertNotIn("contents: write", self.publish)
         self.assertNotIn("deployments: write", self.publish)
-        self.assertNotIn("id-token: write", self.publish)
+        verify_section = self.publish.split("verify-container:", 1)[1].split(
+            "publish-container:", 1
+        )[0]
+        self.assertNotIn("id-token: write", verify_section)
 
     def test_promotion_is_read_only_and_prod_environment_gated(self) -> None:
         self.assertIn("packages: read", self.promote)
         self.assertNotIn("packages: write", self.promote)
         self.assertNotIn("contents: write", self.promote)
         self.assertNotIn("deployments: write", self.promote)
+        self.assertNotIn("id-token: write", self.promote)
         self.assertIn("environment:\n      name: PROD", self.promote)
         self.assertIn("github-environment-required-reviewer", self.promote)
 

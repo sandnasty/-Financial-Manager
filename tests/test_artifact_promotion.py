@@ -24,7 +24,10 @@ class PromotionWorkflowContractTests(unittest.TestCase):
         self.assertIn("environment:\n      name: TEST", self.workflow)
 
     def test_test_depends_on_dev(self) -> None:
-        self.assertIn("- deploy-dev", self.workflow)
+        self.assertTrue(
+            "- deploy-dev" in self.workflow
+            or "needs: [resolve-artifact, deploy-dev]" in self.workflow
+        )
         self.assertIn("Deploy the same exact digest to TEST runner", self.workflow)
 
     def test_prod_is_manual_and_environment_gated(self) -> None:

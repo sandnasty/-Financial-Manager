@@ -29,7 +29,8 @@ class ImmutableArtifactContractTests(unittest.TestCase):
     def test_digest_is_recorded_as_authoritative_identity(self) -> None:
         self.assertIn("steps.build.outputs.digest", self.workflow)
         self.assertIn("immutable_ref", self.workflow)
-        self.assertIn("Authoritative deployment identity: digest", self.workflow)
+        self.assertIn("Immutable reference:", self.workflow)
+        self.assertIn("cosign sign --yes", self.workflow)
 
     def test_latest_tag_is_never_published(self) -> None:
         self.assertNotIn(":latest", self.workflow)
