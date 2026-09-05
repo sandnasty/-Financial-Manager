@@ -12,7 +12,8 @@ from uuid import UUID, uuid4
 
 _REDACTED = "[REDACTED]"
 _SENSITIVE_KEY = re.compile(
-    r"(authorization|cookie|credential|password|secret|token|account_number)",
+    r"(api[_-]?key|authorization|cookie|credential|password|private[_-]?key|"
+    r"secret|token|account_number|connection[_-]?string)",
     re.IGNORECASE,
 )
 
