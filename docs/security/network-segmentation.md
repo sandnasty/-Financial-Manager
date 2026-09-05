@@ -14,6 +14,8 @@ external HTTPS destination by exact hostname. Both layers are source controlled.
 - `broker-gateway` joins `fm_broker_control` and the isolated `fm_broker_egress` network.
 - No AI/LLM or research-agent container shares `fm_broker_egress` or a network with an external
   broker endpoint.
+- `alert-router` is isolated from the agent and broker services and may reach only the regional
+  Amazon SNS endpoint `sns.us-west-2.amazonaws.com` over HTTPS.
 
 The platform-profile service entries use the hardened baseline image only to validate topology;
 later service epics replace their entrypoints without changing network boundaries.
@@ -29,6 +31,8 @@ and proxy connection outcomes must be emitted through the structured audit/telem
 Market/news destinations may be added only to their respective gateway. Broker destinations may
 be added only to `broker-gateway`. Agents never receive external egress entries. Policy changes
 must identify the provider, owner, purpose, environment, and verification evidence in the PR.
+The alert-router SNS entry supports operational notification only and cannot be reused for market,
+news, brokerage, or agent traffic.
 
 ## Verification
 

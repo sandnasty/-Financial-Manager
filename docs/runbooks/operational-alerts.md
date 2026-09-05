@@ -40,3 +40,16 @@ and drain only after duplicate-action safeguards are confirmed.
 Owner: Platform operator. Inspect `fm_alert_delivery_attempts_total` and the redacted delivery
 audit events, verify the provider and protected secret availability, and exercise the alternate
 channel. Keep unsafe workflows disabled if Critical alerts cannot reach either operator path.
+
+### Amazon SNS checks
+
+1. Confirm the runtime has `AWS_REGION`, `ALERT_SMS_RECIPIENT`, and the registered
+   `ALERT_SMS_ORIGINATION_NUMBER`; do not print their values.
+2. Confirm the workload role has only the policy in
+   `infra/aws/alert-router-sns-policy.json` and no long-lived AWS access key is configured.
+3. Confirm the SMS account is out of the sandbox for production, the toll-free registration is
+   active, and the regional SMS spend quota has not been exhausted.
+4. Use the redacted audit receipt to locate the SNS `MessageId` and check the AWS delivery-status
+   logs. A `MessageId` proves provider acceptance, not handset delivery.
+5. Keep the email path active while SNS is impaired. For a Critical alert, treat either missing
+   channel as degraded operations even when the other channel succeeds.

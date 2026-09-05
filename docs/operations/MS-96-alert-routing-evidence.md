@@ -1,5 +1,7 @@
 # MS-96 alert-routing acceptance evidence
 
+Provider activation details: [Amazon SNS production activation](MS-96-aws-sns-activation.md).
+
 Decision: High alerts route to email; Critical alerts route to email and SMS. High email failure
 falls back to SMS after three attempts. Critical channels are attempted independently.
 
@@ -8,6 +10,7 @@ Automated evidence is produced by `tests/test_alert_routing.py` through the auth
 captures independent channel receipts, forces repeated email failure, verifies SMS fallback, and
 checks delivery-failure metrics and redacted audit records.
 
-Production activation evidence remains pending until the owner supplies the destination email,
-mobile number, and provider credentials through the protected PROD secret store. No destination
-or credential may be committed to this file.
+The Gmail sender and recipient path has been verified. Production SMS activation remains pending
+until the owner supplies the destination mobile number through the protected PROD secret store and
+the registered AWS toll-free number becomes active. No destination or credential may be committed
+to this file.

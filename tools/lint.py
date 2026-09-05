@@ -31,10 +31,21 @@ def main() -> int:
     lock = tomllib.loads((ROOT / "pylock.toml").read_text(encoding="utf-8"))
     if project["project"]["requires-python"] != "==3.14.7":
         fail("pyproject.toml must pin Python to ==3.14.7")
-    if project["project"]["dependencies"]:
+    expected_dependencies = ["boto3==1.43.89"]
+    if project["project"]["dependencies"] != expected_dependencies:
         fail("pyproject dependencies changed; regenerate and commit pylock.toml")
-    if lock.get("packages") != []:
-        fail("the lock must match the service's empty third-party dependency set")
+    locked = {f'{package["name"]}=={package["version"]}' for package in lock.get("packages", [])}
+    expected_locked = {
+        "boto3==1.43.89",
+        "botocore==1.43.89",
+        "jmespath==1.1.0",
+        "python-dateutil==2.9.0.post0",
+        "s3transfer==0.19.2",
+        "six==1.17.0",
+        "urllib3==2.7.0",
+    }
+    if locked != expected_locked:
+        fail("pylock.toml must exactly match the pinned Amazon SNS SDK dependency set")
     if lock.get("environments") != ["python_full_version == '3.14.7'"]:
         fail("pylock.toml must pin the exact Python environment")
     if lock.get("requires-python") != "==3.14.7":

@@ -3,7 +3,7 @@ name = "financial-manager-baseline"
 version = "0.1.0"
 description = "Representative Financial Manager health service"
 requires-python = "==3.14.7"
-dependencies = []
+dependencies = ["boto3==1.43.89"]
 
 [tool.financial-manager]
 dependency-lock = "pylock.toml"

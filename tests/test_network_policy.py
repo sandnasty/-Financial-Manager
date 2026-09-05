@@ -34,6 +34,16 @@ class NetworkPolicyTests(unittest.TestCase):
             self.policy.authorize_service("research-agent", "broker-gateway")
         self.assertEqual(self.events[-1]["result"], "denied")
 
+    def test_alert_router_has_only_regional_sns_egress(self):
+        alert_router = self.policies["alert-router"]
+        self.assertEqual(alert_router.east_west, frozenset())
+        self.assertEqual(alert_router.egress_hosts, frozenset({"sns.us-west-2.amazonaws.com"}))
+        self.policy.authorize_egress(
+            "alert-router", "https://sns.us-west-2.amazonaws.com/"
+        )
+        with self.assertRaises(NetworkAccessDenied):
+            self.policy.authorize_egress("alert-router", "https://sns.us-east-1.amazonaws.com/")
+
     def test_egress_requires_exact_https_host_and_audits_result(self):
         policies = dict(self.policies)
         policies["market-data-gateway"] = ServiceNetworkPolicy(

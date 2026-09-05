@@ -21,6 +21,10 @@
     "broker-gateway": {
       "east_west": ["approval-service"],
       "egress_hosts": []
+    },
+    "alert-router": {
+      "east_west": [],
+      "egress_hosts": ["sns.us-west-2.amazonaws.com"]
     }
   }
 }
