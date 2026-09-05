@@ -39,7 +39,7 @@ jobs:
        github.event.workflow_run.head_branch == 'main') ||
       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     outputs:
       immutable_ref: ${{ steps.resolve.outputs.immutable_ref }}
       digest: ${{ steps.resolve.outputs.digest }}
@@ -49,8 +49,10 @@ jobs:
       tag: ${{ steps.resolve.outputs.tag }}
 
     steps:
-      - name: Checkout promotion controls from main
+      - name: Checkout promotion and security controls from main
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Select successful publication run
         id: publication
@@ -92,6 +94,7 @@ jobs:
             --expected-run-id '${{ steps.publication.outputs.run_id }}' \
             --github-output "${GITHUB_OUTPUT}" \
             --resolved-copy promotion-source/artifact-metadata.json
+          mkdir -p security-results
 
       - name: Log in to GHCR for read-only verification
         uses: docker/login-action@v3
@@ -103,6 +106,37 @@ jobs:
       - name: Verify the digest-qualified source artifact exists
         shell: bash
         run: docker buildx imagetools inspect '${{ steps.resolve.outputs.immutable_ref }}'
+
+      - name: Scan exact promotion digest for container vulnerabilities
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          image-ref: ${{ steps.resolve.outputs.immutable_ref }}
+          scanners: vuln
+          format: json
+          output: security-results/trivy-container.json
+          exit-code: '0'
+
+      - name: Enforce container High and Critical security gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tools/security_gate.py \
+            --exceptions security/security-exceptions.json \
+            --trivy security-results/trivy-container.json \
+            --trivy-scanner trivy-container \
+            --summary security-results/container-security-gate-summary.json \
+            --source-sha '${{ steps.resolve.outputs.source_sha }}' \
+            --build-run-id '${{ steps.resolve.outputs.source_run_id }}' \
+            --artifact-digest '${{ steps.resolve.outputs.digest }}'
+
+      - name: Preserve exact-digest security results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: container-security-${{ steps.publication.outputs.run_id }}-${{ github.run_id }}
+          path: security-results/
+          if-no-files-found: warn
+          retention-days: 90
 
       - name: Preserve promotion source metadata
         uses: actions/upload-artifact@v4
@@ -126,6 +160,8 @@ jobs:
     steps:
       - name: Checkout promotion record tool
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Download resolved promotion source
         uses: actions/download-artifact@v4
@@ -176,7 +212,7 @@ jobs:
             --promotion-run-attempt "${GITHUB_RUN_ATTEMPT}" \
             --actor "${GITHUB_ACTOR}" \
             --triggering-actor "${GITHUB_TRIGGERING_ACTOR}" \
-            --approval-control automatic-after-successful-publication \
+            --approval-control automatic-after-successful-publication-and-security-gate \
             --output deployment-record-DEV.json
 
       - name: Preserve DEV deployment record
@@ -203,6 +239,8 @@ jobs:
     steps:
       - name: Checkout promotion record tool
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Download resolved promotion source
         uses: actions/download-artifact@v4
@@ -285,6 +323,8 @@ jobs:
 
       - name: Checkout promotion record tool
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Download resolved promotion source
         uses: actions/download-artifact@v4
