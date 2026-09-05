@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "default": "deny",
+  "services": {
+    "research-agent": {
+      "east_west": ["market-data-gateway", "news-gateway", "approval-service"],
+      "egress_hosts": []
+    },
+    "market-data-gateway": {
+      "east_west": ["research-agent"],
+      "egress_hosts": []
+    },
+    "news-gateway": {
+      "east_west": ["research-agent"],
+      "egress_hosts": []
+    },
+    "approval-service": {
+      "east_west": ["research-agent", "broker-gateway"],
+      "egress_hosts": []
+    },
+    "broker-gateway": {
+      "east_west": ["approval-service"],
+      "egress_hosts": []
+    }
+  }
+}
