@@ -23,6 +23,8 @@ jobs:
     steps:
       - name: Checkout repository revision
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Set up Python 3.14.7
         uses: actions/setup-python@v5
