@@ -39,7 +39,7 @@ jobs:
        github.event.workflow_run.head_branch == 'main') ||
       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     outputs:
       immutable_ref: ${{ steps.resolve.outputs.immutable_ref }}
       digest: ${{ steps.resolve.outputs.digest }}
@@ -49,7 +49,7 @@ jobs:
       tag: ${{ steps.resolve.outputs.tag }}
 
     steps:
-      - name: Checkout promotion and security controls from main
+      - name: Checkout promotion, security, and provenance controls from main
         uses: actions/checkout@v4
         with:
           persist-credentials: false
@@ -70,7 +70,7 @@ jobs:
           esac
           echo "run_id=${run_id}" >> "${GITHUB_OUTPUT}"
 
-      - name: Download immutable artifact metadata
+      - name: Download immutable artifact and supply-chain metadata
         uses: actions/download-artifact@v4
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -94,7 +94,27 @@ jobs:
             --expected-run-id '${{ steps.publication.outputs.run_id }}' \
             --github-output "${GITHUB_OUTPUT}" \
             --resolved-copy promotion-source/artifact-metadata.json
-          mkdir -p security-results
+          provenance="$(find promotion-input -type f -name provenance.json -print -quit)"
+          sbom="$(find promotion-input -type f -name sbom.cdx.json -print -quit)"
+          test -n "${provenance}"
+          test -n "${sbom}"
+          cp "${provenance}" promotion-source/provenance.json
+          cp "${sbom}" promotion-source/sbom.cdx.json
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from tools.supply_chain_evidence import validate_provenance
+          provenance = json.loads(Path('promotion-source/provenance.json').read_text(encoding='utf-8'))
+          metadata = json.loads(Path('promotion-source/artifact-metadata.json').read_text(encoding='utf-8'))
+          validate_provenance(
+              provenance,
+              source_sha=metadata['source_sha'],
+              digest=metadata['digest'],
+              repository=metadata['source_repository'],
+          )
+          PY
+          mkdir -p security-results verification-results
 
       - name: Log in to GHCR for read-only verification
         uses: docker/login-action@v3
@@ -106,6 +126,23 @@ jobs:
       - name: Verify the digest-qualified source artifact exists
         shell: bash
         run: docker buildx imagetools inspect '${{ steps.resolve.outputs.immutable_ref }}'
+
+      - name: Install patched Cosign verifier
+        uses: sigstore/cosign-installer@ba7bc0a3fef59531c69a25acd34668d6d3fe6f22 # v4.1.0
+        with:
+          cosign-release: 'v3.1.3'
+
+      - name: Verify signature and supply-chain attestations
+        shell: bash
+        env:
+          EXPECTED_IDENTITY: https://github.com/${{ github.repository }}/.github/workflows/artifact-publish.yml@refs/heads/main
+          OIDC_ISSUER: https://token.actions.githubusercontent.com
+          IMMUTABLE_REF: ${{ steps.resolve.outputs.immutable_ref }}
+        run: |
+          set -euo pipefail
+          cosign verify --certificate-identity "${EXPECTED_IDENTITY}" --certificate-oidc-issuer "${OIDC_ISSUER}" "${IMMUTABLE_REF}" > verification-results/signature.json
+          cosign verify-attestation --type cyclonedx --certificate-identity "${EXPECTED_IDENTITY}" --certificate-oidc-issuer "${OIDC_ISSUER}" "${IMMUTABLE_REF}" > verification-results/sbom-attestation.json
+          cosign verify-attestation --type slsaprovenance --certificate-identity "${EXPECTED_IDENTITY}" --certificate-oidc-issuer "${OIDC_ISSUER}" "${IMMUTABLE_REF}" > verification-results/provenance-attestation.json
 
       - name: Scan exact promotion digest for container vulnerabilities
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
@@ -129,20 +166,22 @@ jobs:
             --build-run-id '${{ steps.resolve.outputs.source_run_id }}' \
             --artifact-digest '${{ steps.resolve.outputs.digest }}'
 
-      - name: Preserve exact-digest security results
+      - name: Preserve verification and exact-digest security results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: container-security-${{ steps.publication.outputs.run_id }}-${{ github.run_id }}
-          path: security-results/
+          path: |
+            security-results/
+            verification-results/
           if-no-files-found: warn
           retention-days: 90
 
-      - name: Preserve promotion source metadata
+      - name: Preserve promotion source metadata and evidence
         uses: actions/upload-artifact@v4
         with:
           name: promotion-source-${{ github.run_id }}
-          path: promotion-source/artifact-metadata.json
+          path: promotion-source/
           if-no-files-found: error
           retention-days: 90
 
@@ -156,26 +195,22 @@ jobs:
       contents: read
       actions: read
       packages: read
-
     steps:
       - name: Checkout promotion record tool
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-
       - name: Download resolved promotion source
         uses: actions/download-artifact@v4
         with:
           name: promotion-source-${{ github.run_id }}
           path: promotion-source
-
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Deploy exact digest to DEV runner
         shell: bash
         env:
@@ -183,38 +218,20 @@ jobs:
         run: |
           set -euo pipefail
           docker pull "${IMMUTABLE_REF}"
-          docker run --detach --name fm-dev-${GITHUB_RUN_ID} \
-            --publish 127.0.0.1:18080:8080 "${IMMUTABLE_REF}"
+          docker run --detach --name fm-dev-${GITHUB_RUN_ID} --publish 127.0.0.1:18080:8080 "${IMMUTABLE_REF}"
           for attempt in $(seq 1 20); do
-            if curl --fail --silent http://127.0.0.1:18080/health >/dev/null; then
-              exit 0
-            fi
+            if curl --fail --silent http://127.0.0.1:18080/health >/dev/null; then exit 0; fi
             sleep 1
           done
           docker logs fm-dev-${GITHUB_RUN_ID}
           exit 1
-
       - name: Stop DEV deployment
         if: always()
         run: docker rm --force fm-dev-${GITHUB_RUN_ID} >/dev/null 2>&1 || true
-
       - name: Record DEV deployment
         shell: bash
         run: |
-          python tools/promotion_record.py record \
-            --metadata promotion-source/artifact-metadata.json \
-            --repository "${GITHUB_REPOSITORY}" \
-            --owner "${GITHUB_REPOSITORY_OWNER}" \
-            --source-run-id '${{ needs.resolve-artifact.outputs.source_run_id }}' \
-            --environment DEV \
-            --deployment-mode digest-pinned-runner-healthcheck \
-            --promotion-run-id "${GITHUB_RUN_ID}" \
-            --promotion-run-attempt "${GITHUB_RUN_ATTEMPT}" \
-            --actor "${GITHUB_ACTOR}" \
-            --triggering-actor "${GITHUB_TRIGGERING_ACTOR}" \
-            --approval-control automatic-after-successful-publication-and-security-gate \
-            --output deployment-record-DEV.json
-
+          python tools/promotion_record.py record --metadata promotion-source/artifact-metadata.json --repository "${GITHUB_REPOSITORY}" --owner "${GITHUB_REPOSITORY_OWNER}" --source-run-id '${{ needs.resolve-artifact.outputs.source_run_id }}' --environment DEV --deployment-mode digest-pinned-runner-healthcheck --promotion-run-id "${GITHUB_RUN_ID}" --promotion-run-attempt "${GITHUB_RUN_ATTEMPT}" --actor "${GITHUB_ACTOR}" --triggering-actor "${GITHUB_TRIGGERING_ACTOR}" --approval-control automatic-after-successful-signature-provenance-and-security-gates --output deployment-record-DEV.json
       - name: Preserve DEV deployment record
         uses: actions/upload-artifact@v4
         with:
@@ -224,9 +241,7 @@ jobs:
           retention-days: 90
 
   deploy-test:
-    needs:
-      - resolve-artifact
-      - deploy-dev
+    needs: [resolve-artifact, deploy-dev]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment:
@@ -235,26 +250,22 @@ jobs:
       contents: read
       actions: read
       packages: read
-
     steps:
       - name: Checkout promotion record tool
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-
       - name: Download resolved promotion source
         uses: actions/download-artifact@v4
         with:
           name: promotion-source-${{ github.run_id }}
           path: promotion-source
-
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Deploy the same exact digest to TEST runner
         shell: bash
         env:
@@ -262,38 +273,20 @@ jobs:
         run: |
           set -euo pipefail
           docker pull "${IMMUTABLE_REF}"
-          docker run --detach --name fm-test-${GITHUB_RUN_ID} \
-            --publish 127.0.0.1:28080:8080 "${IMMUTABLE_REF}"
+          docker run --detach --name fm-test-${GITHUB_RUN_ID} --publish 127.0.0.1:28080:8080 "${IMMUTABLE_REF}"
           for attempt in $(seq 1 20); do
-            if curl --fail --silent http://127.0.0.1:28080/health >/dev/null; then
-              exit 0
-            fi
+            if curl --fail --silent http://127.0.0.1:28080/health >/dev/null; then exit 0; fi
             sleep 1
           done
           docker logs fm-test-${GITHUB_RUN_ID}
           exit 1
-
       - name: Stop TEST deployment
         if: always()
         run: docker rm --force fm-test-${GITHUB_RUN_ID} >/dev/null 2>&1 || true
-
       - name: Record TEST deployment
         shell: bash
         run: |
-          python tools/promotion_record.py record \
-            --metadata promotion-source/artifact-metadata.json \
-            --repository "${GITHUB_REPOSITORY}" \
-            --owner "${GITHUB_REPOSITORY_OWNER}" \
-            --source-run-id '${{ needs.resolve-artifact.outputs.source_run_id }}' \
-            --environment TEST \
-            --deployment-mode digest-pinned-runner-healthcheck \
-            --promotion-run-id "${GITHUB_RUN_ID}" \
-            --promotion-run-attempt "${GITHUB_RUN_ATTEMPT}" \
-            --actor "${GITHUB_ACTOR}" \
-            --triggering-actor "${GITHUB_TRIGGERING_ACTOR}" \
-            --approval-control automatic-after-successful-dev \
-            --output deployment-record-TEST.json
-
+          python tools/promotion_record.py record --metadata promotion-source/artifact-metadata.json --repository "${GITHUB_REPOSITORY}" --owner "${GITHUB_REPOSITORY_OWNER}" --source-run-id '${{ needs.resolve-artifact.outputs.source_run_id }}' --environment TEST --deployment-mode digest-pinned-runner-healthcheck --promotion-run-id "${GITHUB_RUN_ID}" --promotion-run-attempt "${GITHUB_RUN_ATTEMPT}" --actor "${GITHUB_ACTOR}" --triggering-actor "${GITHUB_TRIGGERING_ACTOR}" --approval-control automatic-after-successful-dev --output deployment-record-TEST.json
       - name: Preserve TEST deployment record
         uses: actions/upload-artifact@v4
         with:
@@ -304,9 +297,7 @@ jobs:
 
   promote-prod:
     if: github.event_name == 'workflow_dispatch' && inputs.promote_to_prod == true
-    needs:
-      - resolve-artifact
-      - deploy-test
+    needs: [resolve-artifact, deploy-test]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment:
@@ -315,51 +306,32 @@ jobs:
       contents: read
       actions: read
       packages: read
-
     steps:
       - name: Require explicit production confirmation
         shell: bash
         run: test '${{ inputs.prod_confirmation }}' = 'PROMOTE'
-
       - name: Checkout promotion record tool
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-
       - name: Download resolved promotion source
         uses: actions/download-artifact@v4
         with:
           name: promotion-source-${{ github.run_id }}
           path: promotion-source
-
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Verify exact PROD promotion candidate without rebuilding
         shell: bash
         run: docker buildx imagetools inspect '${{ needs.resolve-artifact.outputs.immutable_ref }}'
-
       - name: Record approved PROD promotion baseline
         shell: bash
         run: |
-          python tools/promotion_record.py record \
-            --metadata promotion-source/artifact-metadata.json \
-            --repository "${GITHUB_REPOSITORY}" \
-            --owner "${GITHUB_REPOSITORY_OWNER}" \
-            --source-run-id '${{ needs.resolve-artifact.outputs.source_run_id }}' \
-            --environment PROD \
-            --deployment-mode approved-promotion-baseline-no-production-runtime \
-            --promotion-run-id "${GITHUB_RUN_ID}" \
-            --promotion-run-attempt "${GITHUB_RUN_ATTEMPT}" \
-            --actor "${GITHUB_ACTOR}" \
-            --triggering-actor "${GITHUB_TRIGGERING_ACTOR}" \
-            --approval-control github-environment-required-reviewer \
-            --output deployment-record-PROD.json
-
+          python tools/promotion_record.py record --metadata promotion-source/artifact-metadata.json --repository "${GITHUB_REPOSITORY}" --owner "${GITHUB_REPOSITORY_OWNER}" --source-run-id '${{ needs.resolve-artifact.outputs.source_run_id }}' --environment PROD --deployment-mode approved-promotion-baseline-no-production-runtime --promotion-run-id "${GITHUB_RUN_ID}" --promotion-run-attempt "${GITHUB_RUN_ATTEMPT}" --actor "${GITHUB_ACTOR}" --triggering-actor "${GITHUB_TRIGGERING_ACTOR}" --approval-control github-environment-required-reviewer --output deployment-record-PROD.json
       - name: Preserve PROD promotion record
         uses: actions/upload-artifact@v4
         with:
