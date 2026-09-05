@@ -1,0 +1,44 @@
+{
+  "title": "Financial Manager — Agent and Tool Health",
+  "uid": "fm-agent-health",
+  "schemaVersion": 39,
+  "refresh": "30s",
+  "panels": [
+    {
+      "title": "Agent executions",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "rate(fm_agent_executions_total[5m])"
+        }
+      ]
+    },
+    {
+      "title": "Failed workflows",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "increase(fm_agent_executions_total{outcome=\"failure\"}[5m])"
+        }
+      ]
+    },
+    {
+      "title": "Tool outcomes",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "rate(fm_tool_calls_total[5m])"
+        }
+      ]
+    },
+    {
+      "title": "Agent duration",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "fm_agent_last_duration_seconds"
+        }
+      ]
+    }
+  ]
+}
