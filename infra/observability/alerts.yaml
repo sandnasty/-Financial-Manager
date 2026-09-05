@@ -1,0 +1,48 @@
+groups:
+  - name: financial-manager-critical
+    interval: 30s
+    rules:
+      - alert: FinancialManagerServiceDown
+        expr: fm_service_up == 0
+        for: 2m
+        labels: {severity: critical, owner: platform-operator}
+        annotations:
+          summary: Financial Manager service unavailable
+          runbook_url: docs/runbooks/operational-alerts.md#service-down
+      - alert: AuditIngestionBlindSpot
+        expr: time() - fm_audit_last_event_timestamp_seconds > 300
+        for: 5m
+        labels: {severity: critical, owner: security-operator}
+        annotations:
+          summary: Audit ingestion has stopped
+          runbook_url: docs/runbooks/operational-alerts.md#audit-ingestion-loss
+      - alert: TelemetryIngestionBlindSpot
+        expr: absent(up{job="otel-collector"}) or up{job="otel-collector"} == 0
+        for: 5m
+        labels: {severity: high, owner: platform-operator}
+        annotations:
+          summary: OpenTelemetry collector is unavailable
+          runbook_url: docs/runbooks/operational-alerts.md#telemetry-loss
+  - name: financial-manager-workflows
+    rules:
+      - alert: AgentWorkflowFailures
+        expr: increase(fm_agent_executions_total{outcome="failure"}[5m]) >= 3
+        for: 5m
+        labels: {severity: high, owner: trading-operator}
+        annotations:
+          summary: Repeated agent workflow failures
+          runbook_url: docs/runbooks/operational-alerts.md#agent-failures
+      - alert: HighRequestLatency
+        expr: fm_http_latency_seconds > 2
+        for: 10m
+        labels: {severity: high, owner: platform-operator}
+        annotations:
+          summary: Sustained abnormal request latency
+          runbook_url: docs/runbooks/operational-alerts.md#latency
+      - alert: TradeIntentQueueBacklog
+        expr: fm_queue_depth{queue="trade-intent"} > 100
+        for: 10m
+        labels: {severity: high, owner: trading-operator}
+        annotations:
+          summary: TradeIntent queue backlog
+          runbook_url: docs/runbooks/operational-alerts.md#queue-backlog

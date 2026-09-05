@@ -1,0 +1,53 @@
+{
+  "title": "Financial Manager — Platform Health",
+  "uid": "fm-platform-health",
+  "schemaVersion": 39,
+  "refresh": "30s",
+  "panels": [
+    {
+      "title": "Service availability",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "fm_service_up"
+        }
+      ]
+    },
+    {
+      "title": "Error rate",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "rate(fm_http_requests_total{status=~\"5..\"}[5m])"
+        }
+      ]
+    },
+    {
+      "title": "Request latency",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "fm_http_latency_seconds"
+        }
+      ]
+    },
+    {
+      "title": "Queue depth",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "fm_queue_depth"
+        }
+      ]
+    },
+    {
+      "title": "Audit ingestion age",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "time() - fm_audit_last_event_timestamp_seconds"
+        }
+      ]
+    }
+  ]
+}
