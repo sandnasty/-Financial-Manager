@@ -10,6 +10,41 @@
     },
     "schema_version": {"const": "1.0.0"},
     "payload": {"type": "object"},
+    "source": {"$ref": "#/$defs/source"}
+  },
+  "oneOf": [
+    {
+      "properties": {
+        "record_type": {"const": "instrument"},
+        "payload": {"$ref": "#/$defs/instrument"}
+      }
+    },
+    {
+      "properties": {
+        "record_type": {"const": "exchange_session"},
+        "payload": {"$ref": "#/$defs/exchange_session"}
+      }
+    },
+    {
+      "properties": {
+        "record_type": {"const": "corporate_action"},
+        "payload": {"$ref": "#/$defs/corporate_action"}
+      }
+    },
+    {
+      "properties": {
+        "record_type": {"const": "bar"},
+        "payload": {"$ref": "#/$defs/bar"}
+      }
+    },
+    {
+      "properties": {
+        "record_type": {"const": "quote"},
+        "payload": {"$ref": "#/$defs/quote"}
+      }
+    }
+  ],
+  "$defs": {
     "source": {
       "type": "object",
       "required": [
@@ -31,6 +66,92 @@
         "license_tier": {"type": "string", "minLength": 1},
         "dataset_version": {"type": "string", "minLength": 1},
         "normalization_version": {"const": "1.0.0"}
+      },
+      "additionalProperties": false
+    },
+    "instrument": {
+      "type": "object",
+      "required": [
+        "instrument_id", "ticker", "name", "mic", "currency", "country",
+        "active", "effective_from", "effective_to"
+      ],
+      "properties": {
+        "instrument_id": {"type": "string", "minLength": 1},
+        "ticker": {"type": "string", "pattern": "^[A-Z][A-Z0-9.-]{0,14}$"},
+        "name": {"type": "string", "minLength": 1},
+        "mic": {"type": "string", "pattern": "^[A-Z0-9]{4}$"},
+        "currency": {"const": "USD"},
+        "country": {"const": "US"},
+        "active": {"type": "boolean"},
+        "effective_from": {"type": "string", "format": "date"},
+        "effective_to": {"type": ["string", "null"], "format": "date"}
+      },
+      "additionalProperties": false
+    },
+    "exchange_session": {
+      "type": "object",
+      "required": ["mic", "session_date", "opens_at", "closes_at", "is_trading_day"],
+      "properties": {
+        "mic": {"type": "string", "pattern": "^[A-Z0-9]{4}$"},
+        "session_date": {"type": "string", "format": "date"},
+        "opens_at": {"type": "string", "format": "date-time"},
+        "closes_at": {"type": "string", "format": "date-time"},
+        "is_trading_day": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "corporate_action": {
+      "type": "object",
+      "required": [
+        "instrument_id", "action_type", "ex_date", "split_from", "split_to",
+        "cash_amount", "new_ticker"
+      ],
+      "properties": {
+        "instrument_id": {"type": "string", "minLength": 1},
+        "action_type": {
+          "enum": ["split", "cash_dividend", "symbol_change", "delisting"]
+        },
+        "ex_date": {"type": "string", "format": "date"},
+        "split_from": {"type": ["string", "null"]},
+        "split_to": {"type": ["string", "null"]},
+        "cash_amount": {"type": ["string", "null"]},
+        "new_ticker": {"type": ["string", "null"]}
+      },
+      "additionalProperties": false
+    },
+    "bar": {
+      "type": "object",
+      "required": [
+        "instrument_id", "interval", "starts_at", "ends_at", "open", "high",
+        "low", "close", "volume", "session", "adjustment"
+      ],
+      "properties": {
+        "instrument_id": {"type": "string", "minLength": 1},
+        "interval": {"enum": ["1m", "5m", "15m", "30m", "1d"]},
+        "starts_at": {"type": "string", "format": "date-time"},
+        "ends_at": {"type": "string", "format": "date-time"},
+        "open": {"type": "string"},
+        "high": {"type": "string"},
+        "low": {"type": "string"},
+        "close": {"type": "string"},
+        "volume": {"type": "integer", "minimum": 0},
+        "session": {"const": "regular"},
+        "adjustment": {
+          "enum": ["raw", "split_adjusted", "total_return_adjusted"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "quote": {
+      "type": "object",
+      "required": ["instrument_id", "bid", "ask", "bid_size", "ask_size", "session"],
+      "properties": {
+        "instrument_id": {"type": "string", "minLength": 1},
+        "bid": {"type": "string"},
+        "ask": {"type": "string"},
+        "bid_size": {"type": "integer", "minimum": 0},
+        "ask_size": {"type": "integer", "minimum": 0},
+        "session": {"const": "regular"}
       },
       "additionalProperties": false
     }

@@ -129,10 +129,14 @@ class MarketDataContractTests(unittest.TestCase):
             (ROOT / "schemas/market-data/v1/market-data-record.schema.json").read_text()
         )
         self.assertEqual(schema["properties"]["schema_version"]["const"], SCHEMA_VERSION)
-        source_required = set(schema["properties"]["source"]["required"])
+        source_required = set(schema["$defs"]["source"]["required"])
         self.assertTrue(
             {"source_timestamp", "ingested_at", "raw_record_sha256", "license_tier"}
             <= source_required
+        )
+        self.assertEqual(
+            {item["properties"]["record_type"]["const"] for item in schema["oneOf"]},
+            {"instrument", "exchange_session", "corporate_action", "bar", "quote"},
         )
 
 
