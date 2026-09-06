@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://financial-manager.local/schemas/market-data/v1/market-data-record.schema.json",
+  "title": "Financial Manager canonical market-data record",
+  "type": "object",
+  "required": ["record_type", "schema_version", "payload", "source"],
+  "properties": {
+    "record_type": {
+      "enum": ["instrument", "exchange_session", "corporate_action", "bar", "quote"]
+    },
+    "schema_version": {"const": "1.0.0"},
+    "payload": {"type": "object"},
+    "source": {
+      "type": "object",
+      "required": [
+        "provider",
+        "provider_record_id",
+        "source_timestamp",
+        "ingested_at",
+        "raw_record_sha256",
+        "license_tier",
+        "dataset_version",
+        "normalization_version"
+      ],
+      "properties": {
+        "provider": {"type": "string", "minLength": 1},
+        "provider_record_id": {"type": "string", "minLength": 1},
+        "source_timestamp": {"type": "string", "format": "date-time"},
+        "ingested_at": {"type": "string", "format": "date-time"},
+        "raw_record_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "license_tier": {"type": "string", "minLength": 1},
+        "dataset_version": {"type": "string", "minLength": 1},
+        "normalization_version": {"const": "1.0.0"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
