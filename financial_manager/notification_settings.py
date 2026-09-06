@@ -18,6 +18,10 @@ AuditSink = Callable[[dict[str, Any]], None]
 _E164 = re.compile(r"^\+[1-9][0-9]{7,14}$")
 _AWS_REGION = re.compile(r"^[a-z]{2}(?:-gov)?-[a-z]+-[0-9]+$")
 _AWS_PROFILE = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
+_SNS_TOPIC_ARN = re.compile(
+    r"^arn:(?:aws|aws-us-gov|aws-cn):sns:(?P<region>[a-z0-9-]+):"
+    r"(?P<account>[0-9]{12}):(?P<topic>[A-Za-z0-9_-]{1,256})$"
+)
 
 
 class SettingsValidationError(ValueError):
@@ -33,8 +37,9 @@ class NotificationSettings:
     email_enabled: bool = False
     email_recipient: str = ""
     sms_enabled: bool = False
-    aws_region: str = "us-west-2"
+    aws_region: str = "us-east-1"
     aws_profile: str = "default"
+    sms_topic_arn: str = ""
     sms_recipient: str = ""
     sms_origination_number: str = ""
     sms_max_price_usd: str = "0.05"
@@ -52,6 +57,9 @@ class NotificationSettings:
                 errors.append("aws_region")
             if not _AWS_PROFILE.fullmatch(self.aws_profile):
                 errors.append("aws_profile")
+            topic_match = _SNS_TOPIC_ARN.fullmatch(self.sms_topic_arn)
+            if topic_match is None or topic_match.group("region") != self.aws_region:
+                errors.append("sms_topic_arn")
             if not _E164.fullmatch(self.sms_recipient):
                 errors.append("sms_recipient")
             if not _E164.fullmatch(self.sms_origination_number):
@@ -72,6 +80,7 @@ class NotificationSettings:
                 {
                     "AWS_REGION": self.aws_region,
                     "AWS_PROFILE": self.aws_profile,
+                    "ALERT_SMS_TOPIC_ARN": self.sms_topic_arn,
                     "ALERT_SMS_RECIPIENT": self.sms_recipient,
                     "ALERT_SMS_ORIGINATION_NUMBER": self.sms_origination_number,
                     "ALERT_SMS_MAX_PRICE_USD": self.sms_max_price_usd,
@@ -83,10 +92,12 @@ class NotificationSettings:
         email = _mask_email(self.email_recipient) if self.email_enabled else "disabled"
         sms = _mask_phone(self.sms_recipient) if self.sms_enabled else "disabled"
         origin = _mask_phone(self.sms_origination_number) if self.sms_enabled else "disabled"
+        topic = _mask_topic_arn(self.sms_topic_arn) if self.sms_enabled else "disabled"
         return (
             f"Email: {email}",
             f"SMS destination: {sms}",
             f"SMS origination: {origin}",
+            f"SNS topic: {topic}",
             f"AWS region: {self.aws_region if self.sms_enabled else 'not used'}",
             f"AWS profile: {self.aws_profile if self.sms_enabled else 'not used'}",
             f"SMS price cap: {self.sms_max_price_usd if self.sms_enabled else 'not used'}",
@@ -221,3 +232,11 @@ def _mask_phone(value: str) -> str:
     if len(value) < 5:
         return "not configured"
     return f"{'*' * (len(value) - 4)}{value[-4:]}"
+
+
+def _mask_topic_arn(value: str) -> str:
+    match = _SNS_TOPIC_ARN.fullmatch(value)
+    if match is None:
+        return "not configured"
+    account = match.group("account")
+    return value.replace(account, f"{'*' * 8}{account[-4:]}", 1)

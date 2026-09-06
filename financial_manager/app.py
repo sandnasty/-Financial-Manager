@@ -74,12 +74,16 @@ class NotificationSetupWizard:
         sms_enabled = self._yes_no("Enable SMS alerts", base.sms_enabled)
         aws_region = base.aws_region
         aws_profile = base.aws_profile
+        sms_topic_arn = base.sms_topic_arn
         sms_recipient = base.sms_recipient
         sms_origination = base.sms_origination_number
         sms_max_price = base.sms_max_price_usd
         if sms_enabled:
             aws_region = self._value("AWS region", base.aws_region)
             aws_profile = self._value("AWS SSO/profile name", base.aws_profile)
+            sms_topic_arn = self._value(
+                "SNS topic ARN", base.sms_topic_arn, secret_display=True
+            )
             sms_recipient = self._value(
                 "SMS destination in E.164 format", base.sms_recipient, secret_display=True
             )
@@ -97,6 +101,7 @@ class NotificationSetupWizard:
             sms_enabled=sms_enabled,
             aws_region=aws_region,
             aws_profile=aws_profile,
+            sms_topic_arn=sms_topic_arn if sms_enabled else "",
             sms_recipient=sms_recipient if sms_enabled else "",
             sms_origination_number=sms_origination if sms_enabled else "",
             sms_max_price_usd=sms_max_price,

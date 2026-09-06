@@ -38,7 +38,8 @@ class AWSSNSChannelTests(unittest.TestCase):
         client = SNSClient()
         channel = AWSSNSSMSChannel(
             client=client,
-            phone_number="+14805550123",
+            topic_arn="arn:aws:sns:us-east-1:111122223333:financial-manager-alerts",
+            region="us-east-1",
             origination_number="+18005550123",
         )
 
@@ -46,7 +47,11 @@ class AWSSNSChannelTests(unittest.TestCase):
 
         self.assertEqual(receipt, "sns-message-123")
         request = client.calls[0]
-        self.assertEqual(request["PhoneNumber"], "+14805550123")
+        self.assertEqual(
+            request["TopicArn"],
+            "arn:aws:sns:us-east-1:111122223333:financial-manager-alerts",
+        )
+        self.assertNotIn("PhoneNumber", request)
         self.assertLessEqual(len(request["Message"]), 140)
         self.assertEqual(
             request["MessageAttributes"]["AWS.SNS.SMS.SMSType"]["StringValue"],
@@ -69,22 +74,25 @@ class AWSSNSChannelTests(unittest.TestCase):
 
         channel = AWSSNSSMSChannel.from_environment(
             environ={
-                "AWS_REGION": "us-west-2",
-                "ALERT_SMS_RECIPIENT": "+14805550123",
+                "AWS_REGION": "us-east-1",
+                "ALERT_SMS_TOPIC_ARN": (
+                    "arn:aws:sns:us-east-1:111122223333:financial-manager-alerts"
+                ),
                 "ALERT_SMS_ORIGINATION_NUMBER": "+18005550123",
                 "ALERT_SMS_MAX_PRICE_USD": "0.03",
             },
             client_factory=factory,
         )
 
-        self.assertEqual(calls, [("sns", "us-west-2")])
+        self.assertEqual(calls, [("sns", "us-east-1")])
         self.assertEqual(channel.max_price_usd, "0.03")
 
-    def test_rejects_invalid_recipient_without_calling_provider(self):
-        with self.assertRaisesRegex(SNSConfigurationError, "E.164"):
+    def test_rejects_topic_in_a_different_region(self):
+        with self.assertRaisesRegex(SNSConfigurationError, "region must match"):
             AWSSNSSMSChannel(
                 client=SNSClient(),
-                phone_number="480-555-0123",
+                topic_arn="arn:aws:sns:us-west-1:111122223333:financial-manager-alerts",
+                region="us-east-1",
                 origination_number=None,
             )
 
@@ -92,7 +100,8 @@ class AWSSNSChannelTests(unittest.TestCase):
         with self.assertRaisesRegex(SNSConfigurationError, "no more than 1.00"):
             AWSSNSSMSChannel(
                 client=SNSClient(),
-                phone_number="+14805550123",
+                topic_arn="arn:aws:sns:us-east-1:111122223333:financial-manager-alerts",
+                region="us-east-1",
                 origination_number=None,
                 max_price_usd="5.00",
             )
@@ -101,7 +110,8 @@ class AWSSNSChannelTests(unittest.TestCase):
         with self.assertRaisesRegex(SNSConfigurationError, "no more than 1.00"):
             AWSSNSSMSChannel(
                 client=SNSClient(),
-                phone_number="+14805550123",
+                topic_arn="arn:aws:sns:us-east-1:111122223333:financial-manager-alerts",
+                region="us-east-1",
                 origination_number=None,
                 max_price_usd="NaN",
             )
@@ -109,7 +119,8 @@ class AWSSNSChannelTests(unittest.TestCase):
     def test_missing_message_id_is_a_delivery_failure(self):
         channel = AWSSNSSMSChannel(
             client=SNSClient(response={}),
-            phone_number="+14805550123",
+            topic_arn="arn:aws:sns:us-east-1:111122223333:financial-manager-alerts",
+            region="us-east-1",
             origination_number=None,
         )
         with self.assertRaises(SNSDeliveryError):

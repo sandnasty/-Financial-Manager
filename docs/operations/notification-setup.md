@@ -37,8 +37,10 @@ python -m financial_manager.app --settings /tmp/fm-test/settings.json
 
 ## Amazon SNS authentication
 
-Enter the AWS Region and the name of a locally configured AWS profile. Use AWS SSO so the SDK can
-obtain short-lived credentials, for example:
+Enter the AWS Region, SNS topic ARN, and the name of a locally configured AWS profile. The topic
+ARN must be in the selected Region. The default is `us-east-1`, but the wizard accepts any valid
+regional SNS topic and rejects a Region/ARN mismatch. Use AWS SSO so the SDK can obtain short-lived
+credentials, for example:
 
 ```sh
 aws configure sso --profile financial-manager
@@ -47,7 +49,8 @@ aws sso login --profile financial-manager
 
 Then enter `financial-manager` as the profile name in the wizard. Never enter or store AWS access
 keys in this application. The wizard also collects the destination and registered origination
-numbers in E.164 format and a maximum per-message USD price. Complete the account-side controls in
+numbers in E.164 format and a maximum per-message USD price. The alert adapter publishes to the
+topic; AWS delivers to the phone numbers subscribed to that topic. Complete the account-side controls in
 [MS-96 Amazon SNS production activation](MS-96-aws-sns-activation.md).
 
 ## Email boundary

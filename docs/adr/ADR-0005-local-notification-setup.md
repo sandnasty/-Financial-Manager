@@ -20,7 +20,8 @@ The same wizard is available later through **Settings > Notifications**. It supp
 both channels, or an explicitly confirmed disabled state.
 
 The wizard stores only non-credential configuration: recipient addresses, telephone numbers, AWS
-region, AWS profile name, registered origination number, and the per-message price cap. It never
+region, AWS profile name, SNS topic ARN, registered origination number, and the per-message price
+cap. The topic ARN Region must match the selected AWS Region. It never
 collects Gmail passwords or app passwords, AWS access keys, secret keys, session tokens, SSO
 codes, or verification codes. Amazon SNS authentication continues to use the AWS SDK credential
 chain; local installations should use AWS SSO or another short-lived profile.
@@ -36,7 +37,8 @@ deployed service may inject the canonical audit sink defined by ADR-0002.
 
 ## Consequences
 
-- A public clone contains no operator email address, telephone number, or AWS account credential.
+- A public clone contains no operator email address, telephone number, AWS account identifier, or
+  AWS account credential.
 - Each installation can have independent notification settings.
 - Copying the source repository does not copy the OS user configuration folder.
 - Backing up or sharing the user configuration folder can still disclose destinations, so it must

@@ -5,7 +5,7 @@
       "Sid": "PublishOperationalAlertsBySMS",
       "Effect": "Allow",
       "Action": "sns:Publish",
-      "Resource": "*"
+      "Resource": "${ALERT_SMS_TOPIC_ARN}"
     }
   ]
 }

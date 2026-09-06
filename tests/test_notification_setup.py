@@ -50,6 +50,7 @@ class NotificationSettingsTest(unittest.TestCase):
                 email_enabled=True,
                 email_recipient="owner@example.com",
                 sms_enabled=True,
+                sms_topic_arn="arn:aws:sns:us-east-1:111122223333:alerts",
                 sms_recipient="+12025550123",
                 sms_origination_number="+18005550123",
             )
@@ -72,6 +73,7 @@ class NotificationSettingsTest(unittest.TestCase):
         settings = NotificationSettings(
             setup_complete=True,
             sms_enabled=True,
+            sms_topic_arn="arn:aws:sns:us-east-1:111122223333:alerts",
             sms_recipient="2025550123",
             sms_origination_number="not-a-number",
         )
@@ -85,12 +87,17 @@ class NotificationSettingsTest(unittest.TestCase):
             email_recipient="owner@example.com",
             sms_enabled=True,
             aws_profile="financial-manager",
+            sms_topic_arn="arn:aws:sns:us-east-1:111122223333:alerts",
             sms_recipient="+12025550123",
             sms_origination_number="+18005550123",
         )
         environment = settings.runtime_environment()
         self.assertEqual(environment["ALERT_EMAIL_RECIPIENT"], "owner@example.com")
         self.assertEqual(environment["AWS_PROFILE"], "financial-manager")
+        self.assertEqual(
+            environment["ALERT_SMS_TOPIC_ARN"],
+            "arn:aws:sns:us-east-1:111122223333:alerts",
+        )
         self.assertFalse(any("KEY" in name or "TOKEN" in name for name in environment))
 
 
@@ -115,6 +122,7 @@ class NotificationApplicationTest(unittest.TestCase):
                     "yes",
                     "",
                     "financial-manager",
+                    "arn:aws:sns:us-east-1:111122223333:alerts",
                     "+12025550123",
                     "+18005550123",
                     "",
@@ -145,6 +153,7 @@ class NotificationApplicationTest(unittest.TestCase):
                     "yes",
                     "",
                     "",
+                    "arn:aws:sns:us-east-1:111122223333:alerts",
                     "+12025550123",
                     "+18005550123",
                     "",

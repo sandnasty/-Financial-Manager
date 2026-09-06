@@ -10,8 +10,11 @@ from typing import Any, Protocol
 
 from financial_manager.alert_routing import OperationalAlert
 
-_E164 = re.compile(r"^\+[1-9][0-9]{7,14}$")
 _ORIGINATION_NUMBER = re.compile(r"^\+?[0-9]{5,14}$")
+_TOPIC_ARN = re.compile(
+    r"^arn:(?:aws|aws-us-gov|aws-cn):sns:(?P<region>[a-z0-9-]+):"
+    r"[0-9]{12}:[A-Za-z0-9_-]{1,256}$"
+)
 _SMS_MAX_CHARACTERS = 140
 
 
@@ -57,12 +60,16 @@ class AWSSNSSMSChannel:
         self,
         *,
         client: SNSPublishClient,
-        phone_number: str,
+        topic_arn: str,
+        region: str,
         origination_number: str | None,
         max_price_usd: str = "0.05",
     ) -> None:
-        if not _E164.fullmatch(phone_number):
-            raise SNSConfigurationError("ALERT_SMS_RECIPIENT must use E.164 format")
+        topic_match = _TOPIC_ARN.fullmatch(topic_arn)
+        if topic_match is None:
+            raise SNSConfigurationError("ALERT_SMS_TOPIC_ARN must be a valid SNS topic ARN")
+        if topic_match.group("region") != region:
+            raise SNSConfigurationError("ALERT_SMS_TOPIC_ARN region must match AWS_REGION")
         if origination_number and not _ORIGINATION_NUMBER.fullmatch(origination_number):
             raise SNSConfigurationError(
                 "ALERT_SMS_ORIGINATION_NUMBER must contain 5-14 digits and an optional +"
@@ -76,7 +83,7 @@ class AWSSNSSMSChannel:
                 "ALERT_SMS_MAX_PRICE_USD must be greater than 0 and no more than 1.00"
             )
         self.client = client
-        self.phone_number = phone_number
+        self.topic_arn = topic_arn
         self.origination_number = origination_number
         self.max_price_usd = format(max_price, "f")
 
@@ -90,7 +97,7 @@ class AWSSNSSMSChannel:
         """Build the adapter from protected runtime configuration and the AWS IAM chain."""
 
         region = _required(environ, "AWS_REGION")
-        phone_number = _required(environ, "ALERT_SMS_RECIPIENT")
+        topic_arn = _required(environ, "ALERT_SMS_TOPIC_ARN")
         origination_number = _required(environ, "ALERT_SMS_ORIGINATION_NUMBER")
         max_price = environ.get("ALERT_SMS_MAX_PRICE_USD", "0.05").strip()
         if client_factory is None:
@@ -100,7 +107,8 @@ class AWSSNSSMSChannel:
         client = client_factory("sns", region_name=region)
         return cls(
             client=client,
-            phone_number=phone_number,
+            topic_arn=topic_arn,
+            region=region,
             origination_number=origination_number,
             max_price_usd=max_price,
         )
@@ -119,7 +127,7 @@ class AWSSNSSMSChannel:
                 "StringValue": self.origination_number,
             }
         response = self.client.publish(
-            PhoneNumber=self.phone_number,
+            TopicArn=self.topic_arn,
             Message=_render_message(alert),
             MessageAttributes=attributes,
         )
