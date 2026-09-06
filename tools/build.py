@@ -14,7 +14,9 @@ INPUTS = (
     pathlib.Path("financial_manager/__init__.py"),
     pathlib.Path("financial_manager/app.py"),
     pathlib.Path("financial_manager/notification_settings.py"),
+    pathlib.Path("financial_manager/market_data.py"),
     pathlib.Path("infra/container/baseline_service.py"),
+    pathlib.Path("schemas/market-data/v1/market-data-record.schema.json"),
     pathlib.Path("pyproject.toml"),
     pathlib.Path("pylock.toml"),
 )
