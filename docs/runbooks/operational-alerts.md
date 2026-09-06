@@ -43,8 +43,9 @@ channel. Keep unsafe workflows disabled if Critical alerts cannot reach either o
 
 ### Amazon SNS checks
 
-1. Confirm the runtime has `AWS_REGION`, `ALERT_SMS_RECIPIENT`, and the registered
-   `ALERT_SMS_ORIGINATION_NUMBER`; do not print their values.
+1. Confirm the runtime has matching `AWS_REGION` and `ALERT_SMS_TOPIC_ARN` values, the protected
+   `ALERT_SMS_RECIPIENT`, and the registered `ALERT_SMS_ORIGINATION_NUMBER`; do not print their
+   values.
 2. Confirm the workload role has only the policy in
    `infra/aws/alert-router-sns-policy.json` and no long-lived AWS access key is configured.
 3. Confirm the SMS account is out of the sandbox for production, the toll-free registration is

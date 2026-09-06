@@ -8,3 +8,6 @@ dependencies = ["boto3==1.43.89"]
 [tool.financial-manager]
 dependency-lock = "pylock.toml"
 service-entrypoint = "infra/container/baseline_service.py"
+
+[project.scripts]
+financial-manager = "financial_manager.app:main"

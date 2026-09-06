@@ -11,6 +11,6 @@ captures independent channel receipts, forces repeated email failure, verifies S
 checks delivery-failure metrics and redacted audit records.
 
 The Gmail sender and recipient path has been verified. Production SMS activation remains pending
-until the owner supplies the destination mobile number through the protected PROD secret store and
-the registered AWS toll-free number becomes active. No destination or credential may be committed
-to this file.
+until the owner supplies a dedicated same-Region topic through protected runtime configuration,
+subscribes the protected destination, and the registered AWS toll-free number becomes active. No
+topic ARN, destination, account identifier, or credential may be committed to this file.

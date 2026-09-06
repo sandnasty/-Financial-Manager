@@ -33,6 +33,8 @@ class RepositoryContractTest(unittest.TestCase):
         ignore = (ROOT / ".gitignore").read_text(encoding="utf-8")
         self.assertIn(".env", ignore)
         self.assertIn("dist/", ignore)
+        self.assertIn("/settings.json", ignore)
+        self.assertIn("/settings-audit.jsonl", ignore)
 
 
 if __name__ == "__main__":

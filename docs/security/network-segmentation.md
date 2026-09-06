@@ -15,7 +15,7 @@ external HTTPS destination by exact hostname. Both layers are source controlled.
 - No AI/LLM or research-agent container shares `fm_broker_egress` or a network with an external
   broker endpoint.
 - `alert-router` is isolated from the agent and broker services and may reach only the regional
-  Amazon SNS endpoint `sns.us-west-2.amazonaws.com` over HTTPS.
+  Amazon SNS endpoint `sns.us-east-1.amazonaws.com` over HTTPS.
 
 The platform-profile service entries use the hardened baseline image only to validate topology;
 later service epics replace their entrypoints without changing network boundaries.

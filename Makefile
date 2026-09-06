@@ -2,7 +2,7 @@ PYTHON ?= python3
 
 .DEFAULT_GOAL := help
 
-.PHONY: help check-toolchain build test lint format format-check validate doctor container-test clean
+.PHONY: help check-toolchain build test lint format format-check validate doctor run container-test clean
 
 help: ## Show the supported command interface
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -30,6 +30,9 @@ validate: check-toolchain lint format-check test build ## Run the authoritative 
 
 doctor: ## Diagnose the supported Windows + WSL2/Docker development environment
 	@sh tools/doctor.sh
+
+run: check-toolchain ## Run the Financial Manager application and first-run setup
+	@$(PYTHON) -m financial_manager.app
 
 container-test: ## Run the hardened-container integration test (requires Docker Desktop)
 	@sh tests/security/test_container_baseline.sh

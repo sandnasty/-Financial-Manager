@@ -11,6 +11,9 @@ import zipfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 INPUTS = (
+    pathlib.Path("financial_manager/__init__.py"),
+    pathlib.Path("financial_manager/app.py"),
+    pathlib.Path("financial_manager/notification_settings.py"),
     pathlib.Path("infra/container/baseline_service.py"),
     pathlib.Path("pyproject.toml"),
     pathlib.Path("pylock.toml"),
